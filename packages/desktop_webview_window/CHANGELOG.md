@@ -2,6 +2,9 @@
 
 * Windows: add `CreateConfiguration.openHidden`, which creates the window
   without showing it, so it is not painted blank while WebView2 starts.
+  `setWebviewWindowVisibility` now also sets the WebView2 controller's
+  visibility, which does not follow its host window: without it, a webview in
+  a window created hidden stayed blank after the window was shown.
 * Windows: add `CreateConfiguration.denyCameraAndMicrophone`, which answers
   camera and microphone permission requests with a denial instead of passing
   them on to Windows' privacy prompt.

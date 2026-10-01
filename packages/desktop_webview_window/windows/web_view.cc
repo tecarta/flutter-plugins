@@ -113,6 +113,7 @@ void WebView::OnWebviewControllerCreated() {
     }
   }
 
+  webview_controller_->put_IsVisible(visible_);
   UpdateBounds();
 
   // Always use single window to load web page.
@@ -322,6 +323,13 @@ void WebView::Navigate(const std::wstring &url) {
     webview_->Navigate(url.c_str());
   } else {
     std::cerr << "webview not created" << std::endl;
+  }
+}
+
+void WebView::SetVisible(bool visible) {
+  visible_ = visible;
+  if (webview_controller_) {
+    webview_controller_->put_IsVisible(visible);
   }
 }
 
