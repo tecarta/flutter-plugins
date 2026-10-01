@@ -7,6 +7,7 @@
 
 #include <windows.h>
 
+#include <optional>
 #include <string>
 
 #include <flutter/method_channel.h>
@@ -84,6 +85,15 @@ class WebView {
   std::wstring user_data_folder_;
 
   bool triggerOnUrlRequestedEvent{true};
+
+  // A navigation cancelled so Dart could be asked about it, until WebView2
+  // reports it finished. Re-navigating before then is dropped together with
+  // the cancelled navigation, so an allowed URL waits here for it.
+  bool awaiting_cancelled_navigation_{false};
+  uint64_t cancelled_navigation_id_{0};
+  std::optional<std::wstring> deferred_navigation_;
+
+  void NavigateAllowed(const std::wstring &url);
 
   void OnWebviewControllerCreated();
 
