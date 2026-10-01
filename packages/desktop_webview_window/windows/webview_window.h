@@ -42,7 +42,7 @@ class WebviewWindow {
                      const std::wstring &userDataFolder,
                      int windowPosX, int windowPosY, bool useWindowPositionAndSize,
                      bool openMaximized, bool openHidden,
-                     CreateCallback callback);
+                     bool denyCameraAndMicrophone, CreateCallback callback);
 
 
   // OS callback called by message pump. Handles the WM_NCCREATE message which

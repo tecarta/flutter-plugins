@@ -78,6 +78,7 @@ void WebviewWindowPlugin::HandleMethodCall(
       return value != nullptr && *value;
     };
     auto openHidden = optional_bool("openHidden");
+    auto denyCameraAndMicrophone = optional_bool("denyCameraAndMicrophone");
 
     auto window_id = next_window_id_;
     auto window = std::make_unique<WebviewWindow>(
@@ -89,6 +90,7 @@ void WebviewWindowPlugin::HandleMethodCall(
         utf8_to_wide(title), int(height), int(width),
         utf8_to_wide(userDataFolder), int(windowPosX), int(windowPosY),
         useWindowPositionAndSize, openMaximized, openHidden,
+        denyCameraAndMicrophone,
         [this, window_id, result(result2)](bool succeed) mutable {
           if (!succeed) {
             result->Error("0", "failed to show window");

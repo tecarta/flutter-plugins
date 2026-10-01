@@ -35,10 +35,12 @@ WebView::WebView(
     std::shared_ptr<flutter::MethodChannel<flutter::EncodableValue>>
         method_channel,
     int64_t web_view_id, std::wstring userDataFolder,
+    bool deny_camera_and_microphone,
     std::function<void(HRESULT)> on_web_view_created)
     : method_channel_(std::move(method_channel)),
       web_view_id_(web_view_id),
       user_data_folder_(std::move(userDataFolder)),
+      deny_camera_and_microphone_(deny_camera_and_microphone),
       on_web_view_created_callback_(std::move(on_web_view_created)) {
   RegisterWindowClass(kWebViewClassName, WndProc);
   view_window_ = wil::unique_hwnd(::CreateWindowEx(
@@ -129,6 +131,24 @@ void WebView::OnWebviewControllerCreated() {
           })
           .Get(),
       nullptr);
+
+  if (deny_camera_and_microphone_) {
+    // Answered here, so the request never reaches Windows' own privacy prompt.
+    webview_->add_PermissionRequested(
+        Callback<ICoreWebView2PermissionRequestedEventHandler>(
+            [](ICoreWebView2 *sender,
+               ICoreWebView2PermissionRequestedEventArgs *args) {
+              COREWEBVIEW2_PERMISSION_KIND kind;
+              if (SUCCEEDED(args->get_PermissionKind(&kind)) &&
+                  (kind == COREWEBVIEW2_PERMISSION_KIND_CAMERA ||
+                   kind == COREWEBVIEW2_PERMISSION_KIND_MICROPHONE)) {
+                args->put_State(COREWEBVIEW2_PERMISSION_STATE_DENY);
+              }
+              return S_OK;
+            })
+            .Get(),
+        nullptr);
+  }
 
   webview_->add_ContentLoading(
       Callback<ICoreWebView2ContentLoadingEventHandler>(

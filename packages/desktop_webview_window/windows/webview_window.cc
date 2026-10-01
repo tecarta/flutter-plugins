@@ -54,6 +54,7 @@ void WebviewWindow::CreateAndShow(const std::wstring &title, int height, int wid
                                   const std::wstring &userDataFolder,
                                   int windowPosX, int windowPosY, bool useWindowPositionAndSize,
                                   bool openMaximized, bool openHidden,
+                                  bool denyCameraAndMicrophone,
                                   CreateCallback callback) {
 
   RegisterWindowClass(kWebViewWindowClassName, WebviewWindow::WndProc);
@@ -106,7 +107,7 @@ void WebviewWindow::CreateAndShow(const std::wstring &title, int height, int wid
 
   // Create the browser view.
   web_view_ = std::make_unique<webview_window::WebView>(
-      method_channel_, window_id_, userDataFolder,
+      method_channel_, window_id_, userDataFolder, denyCameraAndMicrophone,
       [callback](HRESULT hr) {
         if (SUCCEEDED(hr)) {
           callback(true);
