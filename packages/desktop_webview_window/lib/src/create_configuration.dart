@@ -20,6 +20,14 @@ class CreateConfiguration {
   final bool useWindowPositionAndSize;
   final bool openMaximized;
 
+  /// Windows only. Create the window hidden, so nothing is painted until
+  /// [Webview.setWebviewWindowVisibility] shows it.
+  ///
+  /// `create` resolves only once WebView2 has started, which can take seconds
+  /// on a cold start; a window created visible sits blank and white all that
+  /// time, and hiding it after `create` returns is too late to prevent that.
+  final bool openHidden;
+
   const CreateConfiguration({
     this.windowWidth = 1280,
     this.windowHeight = 720,
@@ -31,6 +39,7 @@ class CreateConfiguration {
     this.userDataFolderWindows = 'webview_window_WebView2',
     this.useWindowPositionAndSize = false,
     this.openMaximized = false,
+    this.openHidden = false,
   });
 
   factory CreateConfiguration.platform() {
@@ -50,5 +59,6 @@ class CreateConfiguration {
         "userDataFolderWindows": userDataFolderWindows,
         "useWindowPositionAndSize": useWindowPositionAndSize,
         "openMaximized": openMaximized,
+        "openHidden": openHidden,
       };
 }

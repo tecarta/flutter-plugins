@@ -65,6 +65,11 @@ class WebView {
 
   void setTriggerOnUrlRequestedEvent(const bool value);
 
+  // Whether WebView2 renders. It does not follow its host window's
+  // visibility, so a webview in a window created hidden stays blank when the
+  // window is shown unless it is told.
+  void SetVisible(bool visible);
+
  private:
   wil::unique_hwnd view_window_;
 
@@ -85,6 +90,9 @@ class WebView {
   std::wstring user_data_folder_;
 
   bool triggerOnUrlRequestedEvent{true};
+
+  // Applied when the controller is created, if SetVisible came first.
+  bool visible_{true};
 
   // A navigation cancelled so Dart could be asked about it, until WebView2
   // reports it finished. Re-navigating before then is dropped together with

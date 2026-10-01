@@ -53,7 +53,8 @@ WebviewWindow::~WebviewWindow() {
 void WebviewWindow::CreateAndShow(const std::wstring &title, int height, int width,
                                   const std::wstring &userDataFolder,
                                   int windowPosX, int windowPosY, bool useWindowPositionAndSize,
-                                  bool openMaximized, CreateCallback callback) {
+                                  bool openMaximized, bool openHidden,
+                                  CreateCallback callback) {
 
   RegisterWindowClass(kWebViewWindowClassName, WebviewWindow::WndProc);
 
@@ -65,7 +66,11 @@ void WebviewWindow::CreateAndShow(const std::wstring &title, int height, int wid
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
   double scale_factor = dpi / 96.0;
 
-  DWORD dwStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+  // Hidden means never shown here: WS_VISIBLE paints the window the moment it
+  // is created, and the ShowWindow below would show it again regardless.
+  DWORD dwStyle = WS_OVERLAPPEDWINDOW;
+  if (!openHidden)
+    dwStyle |= WS_VISIBLE;
   if (openMaximized)
     dwStyle |= WS_MAXIMIZE;
 
@@ -110,6 +115,10 @@ void WebviewWindow::CreateAndShow(const std::wstring &title, int height, int wid
         }
       });
 
+  if (openHidden) {
+    web_view_->SetVisible(false);
+  }
+
   auto web_view_handle = web_view_->NativeWindow().get();
   SetParent(web_view_handle, hwnd_.get());
   MoveWindow(web_view_handle, 0, title_bar_height,
@@ -128,8 +137,10 @@ void WebviewWindow::CreateAndShow(const std::wstring &title, int height, int wid
 
   assert(hwnd_ != nullptr);
 
-  ShowWindow(hwnd_.get(), SW_SHOW);
-  UpdateWindow(hwnd_.get());
+  if (!openHidden) {
+    ShowWindow(hwnd_.get(), SW_SHOW);
+    UpdateWindow(hwnd_.get());
+  }
 
 }
 
@@ -142,6 +153,9 @@ void WebviewWindow::setVisibility(bool visible)
     ::ShowWindow(hwnd_.get(), SW_SHOW);
   else
     ::ShowWindow(hwnd_.get(), SW_HIDE);
+  if (web_view_) {
+    web_view_->SetVisible(visible);
+  }
 }
 
 void WebviewWindow::moveWebviewWindow(int left, int top, int width, int height) {
