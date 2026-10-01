@@ -35,10 +35,12 @@ WebView::WebView(
     std::shared_ptr<flutter::MethodChannel<flutter::EncodableValue>>
         method_channel,
     int64_t web_view_id, std::wstring userDataFolder,
+    bool deny_camera_and_microphone,
     std::function<void(HRESULT)> on_web_view_created)
     : method_channel_(std::move(method_channel)),
       web_view_id_(web_view_id),
       user_data_folder_(std::move(userDataFolder)),
+      deny_camera_and_microphone_(deny_camera_and_microphone),
       on_web_view_created_callback_(std::move(on_web_view_created)) {
   RegisterWindowClass(kWebViewClassName, WndProc);
   view_window_ = wil::unique_hwnd(::CreateWindowEx(
@@ -129,6 +131,24 @@ void WebView::OnWebviewControllerCreated() {
           .Get(),
       nullptr);
 
+  if (deny_camera_and_microphone_) {
+    // Answered here, so the request never reaches Windows' own privacy prompt.
+    webview_->add_PermissionRequested(
+        Callback<ICoreWebView2PermissionRequestedEventHandler>(
+            [](ICoreWebView2 *sender,
+               ICoreWebView2PermissionRequestedEventArgs *args) {
+              COREWEBVIEW2_PERMISSION_KIND kind;
+              if (SUCCEEDED(args->get_PermissionKind(&kind)) &&
+                  (kind == COREWEBVIEW2_PERMISSION_KIND_CAMERA ||
+                   kind == COREWEBVIEW2_PERMISSION_KIND_MICROPHONE)) {
+                args->put_State(COREWEBVIEW2_PERMISSION_STATE_DENY);
+              }
+              return S_OK;
+            })
+            .Get(),
+        nullptr);
+  }
+
   webview_->add_ContentLoading(
       Callback<ICoreWebView2ContentLoadingEventHandler>(
           [](ICoreWebView2 *sender,
@@ -177,18 +197,31 @@ void WebView::OnWebviewControllerCreated() {
               // Capture URI string before async callback
               std::wstring uri_string(uri.get());
 
+              UINT64 navigation_id = 0;
+              args->get_NavigationId(&navigation_id);
+              awaiting_cancelled_navigation_ = true;
+              cancelled_navigation_id_ = navigation_id;
+              deferred_navigation_.reset();
+
               auto result_handler =
                   std::make_unique<flutter::MethodResultFunctions<>>(
-                      [uri_string, sender,
+                      [uri_string, navigation_id,
                        this](const flutter::EncodableValue *success_value) {
                         bool letPass = false;
                         if (success_value && 
                             std::holds_alternative<bool>(*success_value)) {
                           letPass = std::get<bool>(*success_value);
                         }
+                        // A later navigation has superseded this one.
+                        if (navigation_id != cancelled_navigation_id_) {
+                          return;
+                        }
                         if (letPass) {
-                          this->setTriggerOnUrlRequestedEvent(false);
-                          sender->Navigate(uri_string.c_str());
+                          if (awaiting_cancelled_navigation_) {
+                            deferred_navigation_ = uri_string;
+                          } else {
+                            NavigateAllowed(uri_string);
+                          }
                         }
                       },
                       nullptr, nullptr);
@@ -220,6 +253,18 @@ void WebView::OnWebviewControllerCreated() {
       Callback<ICoreWebView2NavigationCompletedEventHandler>(
           [this](ICoreWebView2 *sender,
                  ICoreWebView2NavigationCompletedEventArgs *args) {
+            UINT64 navigation_id = 0;
+            args->get_NavigationId(&navigation_id);
+            if (awaiting_cancelled_navigation_ &&
+                navigation_id == cancelled_navigation_id_) {
+              awaiting_cancelled_navigation_ = false;
+              if (deferred_navigation_) {
+                auto url = std::move(*deferred_navigation_);
+                deferred_navigation_.reset();
+                NavigateAllowed(url);
+              }
+            }
+
             auto method_args = flutter::EncodableMap{
                 {flutter::EncodableValue("id"),
                  flutter::EncodableValue(web_view_id_)},
@@ -278,6 +323,12 @@ void WebView::Navigate(const std::wstring &url) {
   } else {
     std::cerr << "webview not created" << std::endl;
   }
+}
+
+// Issues a navigation Dart allowed, without asking about it again.
+void WebView::NavigateAllowed(const std::wstring &url) {
+  setTriggerOnUrlRequestedEvent(false);
+  Navigate(url);
 }
 
 void WebView::AddScriptToExecuteOnDocumentCreated(

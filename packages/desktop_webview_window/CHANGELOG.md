@@ -1,3 +1,14 @@
+## 0.3.0+tecarta.1
+
+* Windows: add `CreateConfiguration.openHidden`, which creates the window
+  without showing it, so it is not painted blank while WebView2 starts.
+* Windows: add `CreateConfiguration.denyCameraAndMicrophone`, which answers
+  camera and microphone permission requests with a denial instead of passing
+  them on to Windows' privacy prompt.
+* Windows: when a URL request is allowed, re-issue the navigation only after
+  WebView2 has finished cancelling the original one. Navigating sooner could
+  be dropped together with the cancelled navigation, leaving a blank window.
+
 ## 0.3.0
 
 **BREAKING CHANGES**

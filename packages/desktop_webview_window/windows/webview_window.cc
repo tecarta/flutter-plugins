@@ -53,7 +53,9 @@ WebviewWindow::~WebviewWindow() {
 void WebviewWindow::CreateAndShow(const std::wstring &title, int height, int width,
                                   const std::wstring &userDataFolder,
                                   int windowPosX, int windowPosY, bool useWindowPositionAndSize,
-                                  bool openMaximized, CreateCallback callback) {
+                                  bool openMaximized, bool openHidden,
+                                  bool denyCameraAndMicrophone,
+                                  CreateCallback callback) {
 
   RegisterWindowClass(kWebViewWindowClassName, WebviewWindow::WndProc);
 
@@ -65,7 +67,11 @@ void WebviewWindow::CreateAndShow(const std::wstring &title, int height, int wid
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
   double scale_factor = dpi / 96.0;
 
-  DWORD dwStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+  // Hidden means never shown here: WS_VISIBLE paints the window the moment it
+  // is created, and the ShowWindow below would show it again regardless.
+  DWORD dwStyle = WS_OVERLAPPEDWINDOW;
+  if (!openHidden)
+    dwStyle |= WS_VISIBLE;
   if (openMaximized)
     dwStyle |= WS_MAXIMIZE;
 
@@ -101,7 +107,7 @@ void WebviewWindow::CreateAndShow(const std::wstring &title, int height, int wid
 
   // Create the browser view.
   web_view_ = std::make_unique<webview_window::WebView>(
-      method_channel_, window_id_, userDataFolder,
+      method_channel_, window_id_, userDataFolder, denyCameraAndMicrophone,
       [callback](HRESULT hr) {
         if (SUCCEEDED(hr)) {
           callback(true);
@@ -128,8 +134,10 @@ void WebviewWindow::CreateAndShow(const std::wstring &title, int height, int wid
 
   assert(hwnd_ != nullptr);
 
-  ShowWindow(hwnd_.get(), SW_SHOW);
-  UpdateWindow(hwnd_.get());
+  if (!openHidden) {
+    ShowWindow(hwnd_.get(), SW_SHOW);
+    UpdateWindow(hwnd_.get());
+  }
 
 }
 
